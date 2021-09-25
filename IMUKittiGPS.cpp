@@ -981,7 +981,6 @@ int main() {
                 }
                 cout << 1 << endl;
             }
-//            cout << 2 << endl;
             catch(...)
             {
                 cout << "reboot: " << frame_counter << endl;
