@@ -34,8 +34,9 @@ void reduceVector(vector<int> &v, vector<uchar> status)
     v.resize(j);
 }
 
-FeatureTracker::FeatureTracker()
+FeatureTracker::FeatureTracker(bool withMarginal)
 {
+    withMarginal_ = withMarginal;
 }
 
 void FeatureTracker::setMask_simple()
@@ -93,16 +94,24 @@ void FeatureTracker::addPoints()
 
 void FeatureTracker::update_trackid2idx()
 {
-    trackid2idx.clear();
-    for(int i=0;i<all_tracks.size();i++)
+//    trackid2idx.clear();
+//    cout << "all tracks size: " << all_tracks.size() << " all frames size: " << all_frames.size() << endl;
+//    for(int i=0;i<all_tracks.size();i++)
+//    {
+//        trackid2idx[all_tracks[i].id] = i;
+//    }
+
+    for(;trackUpdateTag<all_tracks.size();trackUpdateTag++)
     {
-        trackid2idx[all_tracks[i].id] = i;
+        trackid2idx[all_tracks[trackUpdateTag].id] = trackUpdateTag;
     }
 
+    set<int> frame_ids;
     framdid2idx.clear();
     for(int i=0;i<all_frames.size();++i)
     {
         framdid2idx[all_frames[i].frame_id] = i;
+        frame_ids.insert(all_frames[i].frame_id);
     }
 }
 
@@ -167,19 +176,25 @@ bool FeatureTracker::readImage(const cv::Mat &_img)//同时返回对track情况�
             int now_track_id = cur_frame.pt2track[left];
 
             auto first_frame_ix = all_tracks[now_track_id].imgIdAndPtID[0].first;
-            if(framdid2idx.count(first_frame_ix) > 0) {
+            if(withMarginal_) {
+                if (framdid2idx.count(first_frame_ix) > 0) {
+                    all_tracks[trackid2idx[now_track_id]].imgIdAndPtID.push_back(make_pair(frame_id, right));
+                    new_frame.pt2track[right] = now_track_id;
+                } else //TODO 这里其实感觉挺奇怪的　明明他们就是一个track链里面的 现在因为边缘化的存在 导致我在操作的过程中把这个点给边缘化掉了 不能再进行投影 那如果不进行边缘化会怎么样呢？
+                {
+                    Track track;
+                    track.id = track_id++;
+                    track.active = false;
+                    track.imgIdAndPtID.push_back(make_pair(frame_id, right));
+                    all_tracks.push_back(track);
+                    host_track.push_back(track.id);
+                    new_frame.pt2track[i] = track.id;
+                }
+            }
+            else
+            {
                 all_tracks[trackid2idx[now_track_id]].imgIdAndPtID.push_back(make_pair(frame_id, right));
                 new_frame.pt2track[right] = now_track_id;
-            }
-            else //TODO 这里其实感觉挺奇怪的　明明他们就是一个track链里面的 现在因为边缘化的存在 导致我在操作的过程中把这个点给边缘化掉了 不能再进行投影 那如果不进行边缘化会怎么样呢？
-            {
-                Track track;
-                track.id = track_id++;
-                track.active = false;
-                track.imgIdAndPtID.push_back(make_pair(frame_id,right));
-                all_tracks.push_back(track);
-                host_track.push_back(track.id);
-                new_frame.pt2track[i] = track.id;
             }
         }
     }
@@ -229,7 +244,10 @@ bool FeatureTracker::readImage(const cv::Mat &_img)//同时返回对track情况�
     all_frames.push_back(new_frame);
     all_frames_id.push_back(new_frame.frame_id);
 
+    auto t1 = std::chrono::steady_clock::now();
     update_trackid2idx(); //更新索引
+    auto t2 = std::chrono::steady_clock::now();
+    cout << "update time: " << std::chrono::duration<double,std::milli>(t2-t1).count() << endl;
 
     return marg_type;
 }

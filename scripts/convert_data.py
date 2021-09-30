@@ -1,5 +1,4 @@
 import os
-import pyproj
 import numpy as np
 from geo import *
 

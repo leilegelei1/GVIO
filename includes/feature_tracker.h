@@ -25,7 +25,7 @@ void reduceVector(vector<int> &v, vector<uchar> status);
 
 class FeatureTracker {
 public:
-    FeatureTracker();
+    FeatureTracker(bool withMarginal=false);
 
     bool readImage(const cv::Mat &_img);
 
@@ -62,6 +62,9 @@ public:
 
     int frame_id = 0;
     int track_id = 0;
+
+    bool withMarginal_ = true;
+    int trackUpdateTag = 0;
 };
 
 #endif //GVIO_FEATURE_TRACKER_H

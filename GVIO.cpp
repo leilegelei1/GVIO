@@ -120,8 +120,8 @@ int main() {
     cv::viz::Viz3d vis("Visual Odometry");
     cv::viz::WCoordinateSystem world_coor(30.0), camera_coor(30.5);
     vis.setBackgroundColor(cv::viz::Color::black());// 设置背景颜色
-    world_coor.setRenderingProperty(cv::viz::LINE_WIDTH, 1.0);
-    camera_coor.setRenderingProperty(cv::viz::LINE_WIDTH, 5.0);
+    world_coor.setRenderingProperty(cv::viz::LINE_WIDTH, 10.0);
+    camera_coor.setRenderingProperty(cv::viz::LINE_WIDTH, 10.0);
     vis.showWidget("World", world_coor);
     vis.showWidget("Camera", camera_coor);
     vector<cv::viz::WLine> lines;
@@ -168,13 +168,11 @@ int main() {
     cv::cv2eigen(cam_K, cam_k_eigen);
     gtsam::Cal3_S2::shared_ptr cam_K_gtsam(new Cal3_S2(FX, FY, 0.0, CX, CY));
 
-    auto noise_model_gps_new = noiseModel::Isotropic::Sigma(3, 0.007);
+    auto noise_model_gps_new = noiseModel::Isotropic::Sigma(3, 0.1);
 
-    auto noise_model_pt2d = noiseModel::Isotropic::Sigma(2, 15.0);  // 2D 图像观测误差模型
+    auto noise_model_pt2d = noiseModel::Isotropic::Sigma(2, 5.0);  // 2D 图像观测误差模型
     auto noise_model_pt2d_robust = noiseModel::Robust::Create(gtsam::noiseModel::mEstimator::Huber::Create(4),
                                                               noise_model_pt2d);
-
-//    auto noise_model_pt2d_robust = noiseModel::Isotropic::Sigma(2, 4.0);
 
 //    size_t gps_counter = 1450 + 1200, img_counter = 0, imu_counter = 0;
     size_t gps_counter = 0, img_counter = 0, imu_counter = 0;
@@ -282,8 +280,6 @@ int main() {
 
                 cout << fixed << setprecision(9) << gps_time << " " << img_time << " " << t_previous << endl;
                 cout << "after error = " << graph.error(values) << endl;
-
-
                 current_summarized_measurement = std::make_shared<PreintegratedImuMeasurements>(imu_params,
                                                                                                 current_bias);
                 static size_t included_imu_measurement_count = 0;
@@ -393,10 +389,6 @@ int main() {
                                                                               B(gps_frame_id)).cast<imuBias::ConstantBias>());
                     auto img_pose = Pose3(Rot3(predict.R()), predict.t());
 
-//                    cout << gps_time << " " << total_Dt << endl;
-//                    cout << img_pose << endl;
-//                    cout << predict.velocity() << endl;
-
                     values.insert(X(frame_counter), img_pose);
                     values.insert(V(frame_counter), predict.velocity());
                     values.insert(B(frame_counter), current_bias);
@@ -413,10 +405,8 @@ int main() {
                     t_previous = img_time;
                 }
 
-                //三角化所有的track TODO 检查视差的三角化
                 int cnt = 0;
                 int cnt_tri = 0;
-//                cout << "track num: " << tracker->all_tracks.size() << endl;
                 for (auto track: tracker->all_tracks) {
                     if (track.imgIdAndPtID.size() < 3)
                         continue;
@@ -433,7 +423,6 @@ int main() {
                                 Pose3 cam_pose = imu_pose.compose(C2I);
                                 poses.push_back(cam_pose);
                                 measurements.push_back(Point2(j.undistort_pts[pt_id].x, j.undistort_pts[pt_id].y));
-//                                measurements.push_back(Point2(j.distort_pts[pt_id].x, j.distort_pts[pt_id].y));
                                 poseIdx.push_back(img_frame_id2global_frame_id[frame_id]);
                                 frame_idx.emplace_back(frame_id);
                             }
@@ -478,21 +467,14 @@ int main() {
                     }
                 }
 
-//                cout << cnt << endl;
-//                cout << cnt_tri << endl;
-//                cout << "initial error = " << graph.error(values) << endl;
                 LevenbergMarquardtParams params;
                 LevenbergMarquardtParams::SetCeresDefaults(&params);
-//                values = LevenbergMarquardtOptimizer(graph, values, params).optimize();
+//                params.maxIterations = 3;
                 SLIDEWINDOW->update_with_marg_keys(graph, values);
                 values = SLIDEWINDOW->calculateEstimate();//TODO values始终维持滑窗里面的数据 graph
-//                cout << "final error = " << graph.error(values) << endl;
-
                 processImg = false;
                 initialized = true;
-//                cout << "============================ init finished " << endl;
                 graph.resize(0);
-//                return true;
             }
 
         } else//TODO 初始化完成
@@ -594,9 +576,9 @@ int main() {
                     marg_keys.push_back(V(front_idx));
                     marg_keys.push_back(B(front_idx));
 
-
                     LevenbergMarquardtParams params;
                     LevenbergMarquardtParams::SetCeresDefaults(&params);
+                    params.maxIterations = 3;
                     auto res = SLIDEWINDOW->update_with_marg_keys(graph, values_new, marg_keys);
                     values = SLIDEWINDOW->calculateEstimate();//TODO values始终维持滑窗里面的数据 graph
                     cout << "iterations: " << res.iterations << " errors: " << res.error << endl;
@@ -621,7 +603,6 @@ int main() {
                     incorrect_angle = false;
 
                 } else {
-
                     while (img_measurements[img_counter].time < t_previous + tag) //找到在GPS之后最近的一帧图像
                         img_counter++;
 
@@ -637,7 +618,6 @@ int main() {
                                                                                                     current_bias);
                     static size_t included_imu_measurement_count = 0;
                     double total_Dt = 0;
-//                    cout << "img time: " << img_time << " imu time: " << imu_measurements[imu_counter].time << endl;
                     while (imu_counter < imu_measurements.size() && imu_measurements[imu_counter].time <= img_time) {
                         if (imu_measurements[imu_counter].time >= t_previous) {
                             if (imu_measurements[imu_counter].dt > 0) {
@@ -652,14 +632,12 @@ int main() {
                         }
                         imu_counter++;
                     }
-//                    cout << "imu time: "<< imu_measurements[imu_counter].time << "total dt " << total_Dt << endl;
                     if ((imu_measurements[imu_counter].time - img_time > 0.1) || (total_Dt < 0.012))
                         total_Dt = 0.5;
 
                     Pose3 img_pose_c;
 
 //                    included_imu_measurement_count = 1;
-
                     if (total_Dt < 0.3) { //只有积分是对的才加他
                         if(values.exists(B(frame_counter - 1))) {
                             graph.emplace_shared<ImuFactor>(X(frame_counter - 1), V(frame_counter - 1),
@@ -743,7 +721,6 @@ int main() {
                     if (objectPoints.size() > 20) {
                         cv::solvePnPRansac(objectPoints, imagePoints, cam_K, cv::Mat(),
                                            rvec_cv, tvec_cv, false, 3000, 4, 0.99, inliers, cv::SOLVEPNP_ITERATIVE);
-
                         Eigen::Isometry3d MAT(Eigen::Matrix4d::Identity());
                         Eigen::Vector3d EigenTvec;
                         Eigen::Vector3d EigenRvec;
@@ -795,7 +772,6 @@ int main() {
                             }
 
                             initialized_pts.emplace_back(cur_frame->distort_pts[i]);
-
 //                            auto pt3d = values.at<Point3>(L(track_id));
 //                            auto factor = SimpleProjectionFactor<Pose3,Cal3_S2>(
 //                                    Point2(cur_frame->undistort_pts[i].x, cur_frame->undistort_pts[i].y),
@@ -804,14 +780,11 @@ int main() {
 //                            gtsam::Matrix H1;
 //                            factor.evaluateError(imu_pose,H1);
 //                            cout << H1 << endl;
-
                             auto factor = GenericProjectionFactor<Pose3, Point3, Cal3_S2>(
                                     Point2(cur_frame->undistort_pts[i].x, cur_frame->undistort_pts[i].y),
                                     noise_model_pt2d_robust, X(frame_counter), L(track_id),
                                     cam_K_gtsam,
                                     C2I);
-//                            gtsam::Matrix H1, H2;
-//                            factor.evaluateError(imu_pose,pt3,H1, H2);
 
                             graph.emplace_shared<GenericProjectionFactor<Pose3, Point3, Cal3_S2> >(
                                     Point2(cur_frame->undistort_pts[i].x, cur_frame->undistort_pts[i].y),
@@ -888,10 +861,8 @@ int main() {
                                         continue;
 
                                     track.active = true;
-
                                     auto pointNoise = noiseModel::Isotropic::Sigma(3, 50);
                                     graph.addPrior(L(track.id), pt3d, pointNoise);  // add directly to graph
-//                                    cout << "--------------- "  << track.id << " " << distance << " " << measurement_para << endl;
                                     values_new.insert(L(track.id), pt3d);
                                     values.insert(L(track.id), pt3d);
                                     valid_l_idx[track.id] = 0;
@@ -925,6 +896,7 @@ int main() {
                             }
                         }
                     }
+
                     showTracking(cur_frame->img, initialized_pts, uninitialized_pts, track_len, marged_pts);
                     //构建出需要被边缘化的东西
                     KeyVector marg_keys;
@@ -954,7 +926,6 @@ int main() {
                     auto tvec = pose.translation();
                     auto tvec_cam = img_pose.translation();
                     fprintf(fp_pose, "%f,%f,%f\n", tvec.x(), tvec.y(), tvec.z());
-//                    cout << "----------" << frame_counter << endl << endl;
                     for (auto i: frame.host_track) {
                         if (valid_l_idx.count(i) > 0) {
                             auto pt3 = values.at<Point3>(L(i));
@@ -1008,6 +979,7 @@ int main() {
                     //求解 边缘化
                     LevenbergMarquardtParams params;
                     LevenbergMarquardtParams::SetCeresDefaults(&params);
+                    params.maxIterations = 3;
                     auto res = SLIDEWINDOW->update_with_marg_keys(graph, values_new, marg_keys);
                     values = SLIDEWINDOW->calculateEstimate();//TODO values始终维持滑窗里面的数据 graph
                     cout << "iterations: " << res.iterations << " errors: " << res.error << endl;

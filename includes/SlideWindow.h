@@ -12,9 +12,12 @@ namespace gtsam
     class SlideWindow : public BatchFixedLagSmoother{
     public:
 
+        bool withMarginal_ = true;
+
         /** default constructor */
-        SlideWindow(double smootherLag = 0.0, const LevenbergMarquardtParams& parameters = LevenbergMarquardtParams(), bool enforceConsistency = true) :
-                BatchFixedLagSmoother(smootherLag,parameters,enforceConsistency) { };
+        SlideWindow(double smootherLag = 0.0,bool withMarginal = true, const LevenbergMarquardtParams& parameters = LevenbergMarquardtParams(),
+                    bool enforceConsistency = true) :
+                BatchFixedLagSmoother(smootherLag,parameters,enforceConsistency),withMarginal_(withMarginal) { };
 
         /** destructor */
         ~SlideWindow() override { };
@@ -107,7 +110,8 @@ namespace gtsam
             eraseKeysWithoutTime(marginalizeKeys);
 
             // Insert the new marginal factors
-            insertFactors(marginalFactors);
+            if(withMarginal_)
+                insertFactors(marginalFactors);
         }
 
         void eraseKeysWithoutTime(const KeyVector& keys) {

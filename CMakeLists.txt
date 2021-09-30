@@ -14,5 +14,8 @@ LINK_DIRECTORIES(/usr/local/lib /usr/local)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty
         ${CMAKE_CURRENT_SOURCE_DIR}/includes)
 
-add_executable(GVIO IMUKittiGPS.cpp srcs/feature_tracker.cpp srcs/parameters.cpp srcs/load_kitti.cpp includes/project_factor.h includes/SlideWindow.h includes/ZUPT.h includes/gps_factor_with_lever_arm_calibration.h)
+file(GLOB CPPS ${CMAKE_CURRENT_SOURCE_DIR}/srcs/*.cpp)
+file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/includes/*.h)
+
+add_executable(GVIO GVIO.cpp ${CPPS} ${HEADERS})
 target_link_libraries(GVIO gtsam gtsam_unstable ${OpenCV_LIBS})
