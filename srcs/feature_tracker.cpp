@@ -5,9 +5,6 @@
 #include "feature_tracker.h"
 #include <parameters.h>
 #include <cmath>
-//#include <opencv2/xfeatures2d.hpp>
-#include <opencv2/features2d.hpp>
-//void matchWithSIFT(cv::Mat& cur_img,cv::Mat& forw_img,vector<cv::Point2f> cur_pts,vector<cv::Point2f>)
 
 bool inBorder(const cv::Point2f &pt)
 {
@@ -174,7 +171,7 @@ bool FeatureTracker::readImage(const cv::Mat &_img)//同时返回对track情况�
                 all_tracks[trackid2idx[now_track_id]].imgIdAndPtID.push_back(make_pair(frame_id, right));
                 new_frame.pt2track[right] = now_track_id;
             }
-            else
+            else //TODO 这里其实感觉挺奇怪的　明明他们就是一个track链里面的 现在因为边缘化的存在 导致我在操作的过程中把这个点给边缘化掉了 不能再进行投影 那如果不进行边缘化会怎么样呢？
             {
                 Track track;
                 track.id = track_id++;
